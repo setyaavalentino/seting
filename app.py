@@ -1240,30 +1240,30 @@ def main():
                     custom_settings = None
                     st.info("⚡ Using auto settings for live stream")
                 
-                # Auto create live broadcast dengan setting yang dipilih
-                live_info = auto_create_live_broadcast(
-                    service, 
-                    use_custom_settings=use_custom_settings,
-                    custom_settings=custom_settings,
+            # Auto create live broadcast dengan setting yang dipilih
+            live_info = auto_create_live_broadcast(
+                service, 
+                use_custom_settings=use_custom_settings,
+                custom_settings=custom_settings,
+                session_id=st.session_state['session_id']
+            )
+            
+            # Determine target video path from possible sources
+            v_path_auto = main_video_path if 'main_video_path' in locals() and main_video_path else None
+            
+            if live_info and v_path_auto:
+                # Auto start streaming
+                if auto_start_streaming(
+                    v_path_auto, 
+                    live_info['stream_key'],
                     session_id=st.session_state['session_id']
-                )
-                
-                # Determine target video path from possible sources
-                target_v_path = main_video_path if 'main_video_path' in locals() and main_video_path else None
-                
-                if live_info and target_v_path:
-                    # Auto start streaming
-                    if auto_start_streaming(
-                        target_v_path, 
-                        live_info['stream_key'],
-                        session_id=st.session_state['session_id']
-                    ):
-                        st.success("🎉 Auto live stream started successfully!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Failed to start auto live stream")
+                ):
+                    st.success("🎉 Auto live stream started successfully!")
+                    st.rerun()
                 else:
-                    st.error("❌ Need both YouTube service and video file to auto start")
+                    st.error("❌ Failed to start auto live stream")
+            else:
+                st.error("❌ Need both YouTube service and video file to auto start")
             
             # Instructions panel
             with st.expander("💡 How to Use YouTube Live Features"):

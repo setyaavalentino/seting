@@ -614,10 +614,11 @@ def run_ffmpeg_enhanced(main_video, random_video_folder, stream_key, is_shorts, 
         
         try:
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            for line in process.stdout:
-                if "frame=" in line or "bitrate=" in line:
-                    continue # Reduce log noise
-                log_callback(line.strip())
+            if process.stdout is not None:
+                for line in process.stdout:
+                    if "frame=" in line or "bitrate=" in line:
+                        continue # Reduce log noise
+                    log_callback(line.strip())
             process.wait()
             
             # After main video ends or one loop of random video, switch to next random
@@ -652,10 +653,11 @@ def run_ffmpeg(video_path, stream_key, is_shorts, log_callback, rtmp_url=None, s
     
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        for line in process.stdout:
-            log_callback(line.strip())
-            if session_id:
-                log_to_database(session_id, "FFMPEG", line.strip(), video_path)
+        if process.stdout is not None:
+            for line in process.stdout:
+                log_callback(line.strip())
+                if session_id:
+                    log_to_database(session_id, "FFMPEG", line.strip(), video_path)
         process.wait()
         
         end_msg = "✅ Streaming completed successfully"
@@ -1228,42 +1230,45 @@ def main():
             
             # Auto Live Stream Button
             if st.button("🚀 Auto Start Live Stream", type="primary", help="Auto create and start live stream with selected settings"):
-                service = st.session_state['youtube_service']
+                service = st.session_state.get('youtube_service')
                 
-                # Tentukan setting yang akan digunakan
-                if setting_mode == "🔧 Manual Settings" and 'manual_settings' in st.session_state:
-                    use_custom_settings = True
-                    custom_settings = st.session_state['manual_settings']
-                    st.info("🔧 Using manual settings for live stream")
+                if service:
+                    # Tentukan setting yang akan digunakan
+                    if setting_mode == "🔧 Manual Settings" and 'manual_settings' in st.session_state:
+                        use_custom_settings = True
+                        custom_settings = st.session_state['manual_settings']
+                        st.info("🔧 Using manual settings for live stream")
+                    else:
+                        use_custom_settings = False
+                        custom_settings = None
+                        st.info("⚡ Using auto settings for live stream")
+                    
+                    # Auto create live broadcast dengan setting yang dipilih
+                    live_info = auto_create_live_broadcast(
+                        service, 
+                        use_custom_settings=use_custom_settings,
+                        custom_settings=custom_settings,
+                        session_id=st.session_state['session_id']
+                    )
+                    
+                    # Determine target video path from possible sources
+                    v_path_auto = main_video_path if 'main_video_path' in locals() and main_video_path else None
+                    
+                    if live_info and v_path_auto:
+                        # Auto start streaming
+                        if auto_start_streaming(
+                            v_path_auto, 
+                            live_info['stream_key'],
+                            session_id=st.session_state['session_id']
+                        ):
+                            st.success("🎉 Auto live stream started successfully!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to start auto live stream")
+                    else:
+                        st.error("❌ Need both YouTube service and video file to auto start")
                 else:
-                    use_custom_settings = False
-                    custom_settings = None
-                    st.info("⚡ Using auto settings for live stream")
-                
-            # Auto create live broadcast dengan setting yang dipilih
-            live_info = auto_create_live_broadcast(
-                service, 
-                use_custom_settings=use_custom_settings,
-                custom_settings=custom_settings,
-                session_id=st.session_state['session_id']
-            )
-            
-            # Determine target video path from possible sources
-            v_path_auto = main_video_path if 'main_video_path' in locals() and main_video_path else None
-            
-            if live_info and v_path_auto:
-                # Auto start streaming
-                if auto_start_streaming(
-                    v_path_auto, 
-                    live_info['stream_key'],
-                    session_id=st.session_state['session_id']
-                ):
-                    st.success("🎉 Auto live stream started successfully!")
-                    st.rerun()
-                else:
-                    st.error("❌ Failed to start auto live stream")
-            else:
-                st.error("❌ Need both YouTube service and video file to auto start")
+                    st.error("❌ YouTube service not initialized. Please authenticate first.")
             
             # Instructions panel
             with st.expander("💡 How to Use YouTube Live Features"):

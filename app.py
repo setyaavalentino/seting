@@ -1248,10 +1248,13 @@ def main():
                     session_id=st.session_state['session_id']
                 )
                 
-                if live_info and video_path:
+                # Determine target video path from possible sources
+                target_v_path = main_video_path if 'main_video_path' in locals() and main_video_path else None
+                
+                if live_info and target_v_path:
                     # Auto start streaming
                     if auto_start_streaming(
-                        video_path, 
+                        target_v_path, 
                         live_info['stream_key'],
                         session_id=st.session_state['session_id']
                     ):
@@ -1572,7 +1575,10 @@ def main():
             # Get the current stream key
             stream_key = st.session_state.get('current_stream_key', '')
             
-            if not video_path:
+            # Use main_video_path instead of undefined video_path
+            v_path = main_video_path if 'main_video_path' in locals() and main_video_path else None
+            
+            if not v_path:
                 st.error("❌ Please select or upload a video!")
             elif not stream_key:
                 st.error("❌ Stream key is required!")
@@ -1580,7 +1586,7 @@ def main():
                 # Save streaming session
                 save_streaming_session(
                     st.session_state['session_id'],
-                    video_path,
+                    v_path,
                     stream_title,
                     stream_description,
                     ", ".join(tags),
@@ -1605,12 +1611,12 @@ def main():
                 
                 st.session_state['ffmpeg_thread'] = threading.Thread(
                     target=run_ffmpeg, 
-                    args=(video_path, stream_key, is_shorts, log_callback, custom_rtmp or None, st.session_state['session_id']), 
+                    args=(v_path, stream_key, is_shorts, log_callback, custom_rtmp or None, st.session_state['session_id']), 
                     daemon=True
                 )
                 st.session_state['ffmpeg_thread'].start()
                 st.success("🚀 Streaming started!")
-                log_to_database(st.session_state['session_id'], "INFO", f"Streaming started: {video_path}")
+                log_to_database(st.session_state['session_id'], "INFO", f"Streaming started: {v_path}")
                 st.rerun()
         
         if st.button("⏹️ Stop Streaming", type="secondary"):
